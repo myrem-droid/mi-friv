@@ -1,0 +1,458 @@
+:root {
+    --bg-dark: #0b0e14;
+    --bg-card: #151a24;
+    --primary: #7c3aed;
+    --secondary: #06b6d4;
+    --accent: #f59e0b;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --glass: rgba(21, 26, 36, 0.8);
+    --border-glass: rgba(255, 255, 255, 0.08);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Outfit', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* Luz ambiental de fondo */
+.bg-glow {
+    position: fixed;
+    top: -150px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80vw;
+    height: 400px;
+    background: radial-gradient(circle, rgba(124, 58, 237, 0.25) 0%, rgba(6, 182, 212, 0.1) 50%, transparent 70%);
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* Navbar */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 5%;
+    background: var(--glass);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-glass);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.logo-icon {
+    font-size: 1.8rem;
+    filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.8));
+}
+
+.logo-text {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+
+.logo-text .accent {
+    color: var(--secondary);
+}
+
+.search-box {
+    flex: 1;
+    max-width: 420px;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-icon {
+    position: absolute;
+    left: 14px;
+    font-size: 0.95rem;
+    opacity: 0.7;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 10px 15px 10px 40px;
+    border-radius: 99px;
+    border: 1px solid var(--border-glass);
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+    font-size: 0.95rem;
+    outline: none;
+    transition: all 0.25s ease;
+}
+
+.search-box input:focus {
+    border-color: var(--secondary);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
+}
+
+.stats-badge {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    padding: 6px 14px;
+    border-radius: 99px;
+    font-weight: 800;
+    font-size: 0.85rem;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+}
+
+/* Filtros */
+.filtros-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px 5% 10px;
+    flex-wrap: wrap;
+}
+
+.filtro-btn {
+    background: var(--bg-card);
+    color: var(--text-muted);
+    border: 1px solid var(--border-glass);
+    padding: 8px 18px;
+    border-radius: 99px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filtro-btn:hover {
+    color: white;
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+}
+
+.filtro-btn.activo {
+    background: white;
+    color: var(--bg-dark);
+    border-color: white;
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+}
+
+/* Grid Principal */
+.contenedor-principal {
+    flex: 1;
+    width: 100%;
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 20px 5% 50px;
+}
+
+.grid-juegos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+    gap: 18px;
+}
+
+/* Tarjeta Estilo Friv Pro */
+.tarjeta-juego {
+    aspect-ratio: 1 / 1;
+    border-radius: 20px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--bg-card);
+    border: 2px solid var(--border-glass);
+    transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease, border-color 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    user-select: none;
+}
+
+.tarjeta-juego:hover {
+    transform: translateY(-6px) scale(1.04);
+    border-color: var(--secondary);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(6, 182, 212, 0.35);
+    z-index: 5;
+}
+
+/* Tarjeta destacada (ocupa 2x2 en pantallas medianas/grandes) */
+.tarjeta-juego.destacado {
+    grid-column: span 2;
+    grid-row: span 2;
+}
+
+.tarjeta-juego.destacado .icono-juego {
+    font-size: 5rem;
+}
+
+.tarjeta-juego.destacado .titulo-juego {
+    font-size: 1.25rem;
+}
+
+/* Etiqueta superior (NUEVO / TOP) */
+.badge-tag {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: #ef4444;
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.badge-tag.top {
+    background: var(--accent);
+    color: #000;
+}
+
+/* Botón estrella rápido en tarjeta */
+.fav-corner {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 1.1rem;
+    opacity: 0.6;
+    transition: transform 0.2s, opacity 0.2s;
+    z-index: 3;
+}
+
+.fav-corner:hover, .fav-corner.es-fav {
+    opacity: 1;
+    transform: scale(1.2);
+}
+
+.icono-juego {
+    font-size: 3.3rem;
+    margin-bottom: 10px;
+    transition: transform 0.3s ease;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+.tarjeta-juego:hover .icono-juego {
+    transform: scale(1.12) rotate(-4deg);
+}
+
+/* Si usas imagen en vez de emoji */
+.img-juego {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+}
+
+.overlay-info {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    width: 100%;
+}
+
+.tarjeta-juego.con-imagen .overlay-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 25px 10px 10px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+}
+
+.titulo-juego {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.sin-resultados {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+/* Modal / Visor de Juego */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 7, 11, 0.92);
+    backdrop-filter: blur(8px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    padding: 15px;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.oculto {
+    display: none !important;
+}
+
+.modal-contenido {
+    width: 100%;
+    max-width: 1050px;
+    height: 88vh;
+    background: #111622;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+}
+
+.modal-barra {
+    background: #182032;
+    padding: 12px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-glass);
+}
+
+.juego-info-barra {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.modal-icono {
+    font-size: 1.8rem;
+}
+
+.juego-info-barra h2 {
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.controles-hint {
+    font-size: 0.78rem;
+    color: var(--secondary);
+    display: block;
+}
+
+.modal-acciones {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-accion {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-accion:hover {
+    background: var(--primary);
+    transform: translateY(-2px);
+}
+
+.btn-cerrar:hover {
+    background: #ef4444;
+}
+
+.iframe-wrapper {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    background: #000;
+}
+
+.loader {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--secondary);
+    font-weight: 600;
+    z-index: 1;
+}
+
+#iframe-juego {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border-glass);
+}
+
+/* Adaptación Celular */
+@media (max-width: 600px) {
+    .navbar {
+        justify-content: center;
+    }
+    .search-box {
+        order: 3;
+        max-width: 100%;
+        width: 100%;
+    }
+    .grid-juegos {
+        grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+        gap: 12px;
+    }
+    .tarjeta-juego.destacado {
+        grid-column: span 2;
+        grid-row: span 2;
+    }
+    .modal {
+        padding: 0;
+    }
+    .modal-contenido {
+        height: 100vh;
+        border-radius: 0;
+        border: none;
+    }
+    .controles-hint {
+        display: none;
+    }
+}
