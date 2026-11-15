@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Brawl Royale 3D - Ultimate Edition</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; touch-action: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #050811; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #fff; }
+        #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+
+        /* Pantallas de Interfaz (Lobby y Fin de Partida) */
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at center, #1a2639 0%, #070b14 100%); transition: opacity 0.4s ease; }
+        .screen.hidden { opacity: 0; pointer-events: none; }
+
+        h1 { font-size: clamp(36px, 6vw, 64px); font-weight: 900; color: #f1c40f; text-shadow: 0 5px 0 #9a7d0a, 0 0 40px rgba(241,196,15,0.7); margin-bottom: 10px; text-transform: uppercase; text-align: center; letter-spacing: 4px; }
+        p.subtitle { font-size: clamp(14px, 2vw, 17px); color: #8fa3bc; margin-bottom: 30px; text-align: center; max-width: 550px; line-height: 1.6; }
+
+        .btn { background: linear-gradient(180deg, #2ecc71 0%, #27ae60 100%); border: 3px solid #fff; color: #fff; font-weight: 900; font-size: 16px; padding: 16px 50px; border-radius: 40px; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 6px 0 #1b5e20, 0 12px 30px rgba(0,0,0,0.6); transition: all 0.1s ease; pointer-events: auto; }
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 9px 0 #1b5e20, 0 15px 35px rgba(0,0,0,0.7); }
+        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #1b5e20; }
+
+        /* Contenedor del Lobby */
+        .lobby-container { display: flex; width: 94%; max-width: 1050px; height: 84vh; background: rgba(12, 18, 32, 0.92); border: 3px solid #283747; border-radius: 20px; overflow: hidden; backdrop-filter: blur(16px); box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
+        .lobby-left { flex: 1; padding: 30px; display: flex; flex-direction: column; justify-content: space-between; border-right: 2px solid #1f2c3d; }
+        .lobby-right { flex: 1.2; padding: 30px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.15); }
+
+        .section-title { font-size: 13px; text-transform: uppercase; color: #f39c12; font-weight: 900; margin-bottom: 12px; letter-spacing: 1.5px; }
+        
+        .char-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; max-height: 280px; overflow-y: auto; padding-right: 5px; }
+        .char-card { background: #182236; border: 2px solid #283747; border-radius: 14px; padding: 12px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .char-card:hover { border-color: #f1c40f; transform: scale(1.04); }
+        .char-card.selected { border-color: #2ecc71; background: #1e332c; box-shadow: 0 0 18px rgba(46,204,113,0.4); }
+        .char-icon { font-size: 34px; margin-bottom: 6px; }
+        .char-name { font-size: 13px; font-weight: 800; }
+
+        .mode-selector { display: flex; gap: 12px; width: 100%; }
+        .mode-btn { flex: 1; background: #182236; border: 2px solid #283747; border-radius: 14px; padding: 14px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .mode-btn:hover { border-color: #3498db; }
+        .mode-btn.selected { border-color: #3498db; background: #154360; box-shadow: 0 0 18px rgba(52,152,219,0.4); }
+        .mode-name { font-size: 14px; font-weight: 800; }
+        .mode-desc { font-size: 11px; color: #a6acaf; margin-top: 5px; }
+
+        /* HUD en Partida */
+        .hud { position: absolute; z-index: 10; pointer-events: none; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; padding: 22px; }
+        .hud-top { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
+        
+        .player-hud-card { background: rgba(14, 20, 38, 0.9); border: 2px solid #f1c40f; border-radius: 16px; padding: 10px 20px; display: flex; align-items: center; gap: 15px; backdrop-filter: blur(10px); box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
+        .hud-avatar { width: 48px; height: 48px; background: #e74c3c; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; border: 2px solid #fff; }
+        .hud-info div:first-child { font-size: 11px; color: #f1c40f; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+        .hud-info div:last-child { font-size: 18px; font-weight: 900; font-family: monospace; }
+        
+        .hp-bar-container { width: 120px; height: 8px; background: rgba(255,255,255,0.15); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+        .hp-bar-fill { width: 100%; height: 100%; background: #2ecc71; transition: width 0.2s ease; }
+
+        .objective-box { background: rgba(14, 20, 38, 0.92); border: 2px solid #3498db; border-radius: 16px; padding: 12px 26px; text-align: center; backdrop-filter: blur(10px); box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
+        .objective-box span { display: block; font-size: 11px; color: #3498db; text-transform: uppercase; font-weight: 900; letter-spacing: 1.5px; }
+        .objective-box strong { font-size: 26px; font-weight: 900; font-family: monospace; }
+
+        /* Capa de Controles Táctiles y de Escritorio */
+        .controls-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 8; pointer-events: none; display: flex; justify-content: space-between; align-items: flex-end; padding: 35px; }
+        .joystick-zone { width: 150px; height: 150px; border-radius: 50%; background: rgba(255, 255, 255, 0.04); border: 2px dashed rgba(255, 255, 255, 0.2); position: relative; pointer-events: auto; touch-action: none; }
+        .joystick-knob { width: 65px; height: 65px; border-radius: 50%; background: rgba(52, 152, 219, 0.85); border: 3px solid #fff; position: absolute; top: 42px; left: 42px; box-shadow: 0 0 20px #3498db; }
+        
+        .action-buttons { display: flex; gap: 20px; align-items: flex-end; pointer-events: auto; }
+        .attack-btn { width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, #e74c3c, #c0392b); border: 4px solid #f1c40f; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; text-transform: uppercase; box-shadow: 0 8px 25px rgba(231,76,60,0.6); cursor: pointer; }
+        .attack-btn:active { transform: scale(0.92); }
+        
+        .super-btn { width: 75px; height: 75px; border-radius: 50%; background: linear-gradient(135deg, #f1c40f, #d35400); border: 4px solid #fff; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 12px; text-transform: uppercase; box-shadow: 0 8px 25px rgba(241,196,15,0.7); cursor: pointer; opacity: 0.35; pointer-events: none; transition: all 0.2s; }
+        .super-btn.active { opacity: 1; pointer-events: auto; animation: pulseSuper 1s infinite alternate; }
+        @keyframes pulseSuper { from { transform: scale(1); box-shadow: 0 0 15px #f1c40f; } to { transform: scale(1.12); box-shadow: 0 0 32px #f1c40f; } }
+
+        #desktop-instructions { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 12px; color: rgba(255,255,255,0.55); pointer-events: none; z-index: 10; text-align: center; }
+        .key { display: inline-block; padding: 2px 7px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.35); border-radius: 4px; font-family: monospace; font-weight: bold; }
+
+        /* Texto flotante en pantalla */
+        .float-text { position: absolute; font-weight: 900; font-family: monospace; font-size: 18px; pointer-events: none; z-index: 25; animation: floatUp 0.8s ease-out forwards; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-50px) scale(1.2); opacity: 0; } }
+    </style>
+    <!-- Three.js Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <!-- LOBBY SCREEN -->
+    <div class="screen" id="lobby-screen">
+        <h1>BRAWL ROYALE 3D</h1>
+        <p class="subtitle">Selecciona tu Brawler legendario, elige tu modo de juego preferido y domina la arena de combate en tiempo real.</p>
+        <div class="lobby-container">
+            <div class="lobby-left">
+                <div>
+                    <div class="section-title">Elige tu Brawler</div>
+                    <div class="char-grid" id="char-grid"></div>
+                </div>
+                <div>
+                    <div class="section-title" style="margin-top: 22px;">Modo de Juego</div>
+                    <div class="mode-selector">
+                        <div class="mode-btn selected" id="mode-gem" onclick="selectMode('gem')">
+                            <div class="mode-name">Atrapagemas</div>
+                            <div class="mode-desc">Recolecta 10 gemas</div>
+                        </div>
+                        <div class="mode-btn" id="mode-bounty" onclick="selectMode('bounty')">
+                            <div class="mode-name">Caza Estelar</div>
+                            <div class="mode-desc">Consigue 10 estrellas</div>
+                        </div>
+                        <div class="mode-btn" id="mode-heist" onclick="selectMode('heist')">
+                            <div class="mode-name">Asalto al Banco</div>
+                            <div class="mode-desc">Destruye la caja fuerte</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="lobby-right">
+                <div style="text-align: center;">
+                    <div id="lobby-avatar-preview" style="font-size: 55px; margin-bottom: 10px;">🤠</div>
+                    <h2 id="selected-char-title" style="color: #f1c40f; margin-bottom: 6px; font-size: 24px;">Colt</h2>
+                    <p id="selected-char-desc" style="font-size: 14px; color: #a9cce3; max-width: 290px; line-height: 1.5;">Disparador rápido con balas precisas a larga distancia.</p>
+                </div>
+                <button class="btn" onclick="startBattle()">¡A BATALLA!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- IN-GAME HUD -->
+    <div class="hud" id="hud-layer" style="display: none;">
+        <div class="hud-top">
+            <div class="player-hud-card">
+                <div class="hud-avatar" id="hud-avatar-icon">🤠</div>
+                <div class="hud-info">
+                    <div id="hud-char-name">Colt</div>
+                    <div id="player-hp-text">4500 / 4500</div>
+                    <div class="hp-bar-container">
+                        <div class="hp-bar-fill" id="hp-bar-fill"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="objective-box">
+                <span id="objective-title">Gemas Recolectadas</span>
+                <strong id="objective-val" style="color: #e056fd;">0 / 10</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTROLS LAYER -->
+    <div class="controls-layer" id="controls-layer" style="display: none;">
+        <div class="joystick-zone" id="joystick-zone">
+            <div class="joystick-knob" id="joystick-knob"></div>
+        </div>
+        <div class="action-buttons">
+            <div class="super-btn" id="super-btn" onclick="triggerSuper()">SUPER</div>
+            <div class="attack-btn" onclick="triggerAttack()">ATACAR</div>
+        </div>
+    </div>
+
+    <div id="desktop-instructions">
+        Mover: <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> | Apuntar & Disparar: <span class="key">Click Izquierdo</span> | Súper: <span class="key">Espacio</span>
+    </div>
+
+    <!-- GAME OVER / VICTORY SCREEN -->
+    <div class="screen hidden" id="gameover-screen">
+        <h1 id="gameover-title" style="color: #e74c3c;">¡DERROTA!</h1>
+        <p class="subtitle" id="gameover-desc">Tu brawler ha sido derrotado en combate.</p>
+        <button class="btn" onclick="returnToLobby()">Volver al Lobby</button>
+    </div>
+
+    <script>
+        // =====================================================================
+        // 1. SISTEMA DE AUDIO PROCEDURAL (Web Audio API)
+        // =====================================================================
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+
+                if (type === 'shoot') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(650, now);
+                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1);
+                } else if (type === 'hit') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.exponentialRampToValueAtTime(50, now + 0.15);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now); osc.stop(now + 0.15);
+                } else if (type === 'gem') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(500, now);
+                    osc.frequency.setValueAtTime(950, now + 0.1);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now); osc.stop(now + 0.25);
+                } else if (type === 'super') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(900, now + 0.3);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                }
+            } catch(e) {}
+        }
+
+        // =====================================================================
+        // 2. BASE DE DATOS DE BRAWLERS Y CONFIGURACIÓN
+        // =====================================================================
+        const characters = [
+            { id: 'colt', name: 'Colt', icon: '🤠', desc: 'Disparador rápido con balas precisas y gran alcance.', hp: 4200, speed: 0.13, color: 0xe67e22, weapon: 'pistol' },
+            { id: 'shelly', name: 'Shelly', icon: '👱‍♀️', desc: 'Escopetero experto en combate cercano con daño en cono.', hp: 4800, speed: 0.12, color: 0x9b59b6, weapon: 'shotgun' },
+            { id: 'spike', name: 'Spike', icon: '🌵', desc: 'Lanza espinas explosivas con radio de impacto amplio.', hp: 3600, speed: 0.12, color: 0x2ecc71, weapon: 'spike' },
+            { id: 'bull', name: 'Bull', icon: '🐂', desc: 'Tanque pesado con escopeta doble y blindaje superior.', hp: 6000, speed: 0.11, color: 0x34495e, weapon: 'heavy' },
+            { id: 'crow', name: 'Crow', icon: '🦅', desc: 'Asesino ágil que dispara dagas letales en ráfaga.', hp: 3200, speed: 0.15, color: 0x16a085, weapon: 'daggers' }
+        ];
+
+        let selectedChar = characters[0];
+        let currentGameMode = 'gem';
+
+        // =====================================================================
+        // 3. ESTADOS Y MOTOR 3D
+        // =====================================================================
+        let scene, camera, renderer, clock;
+        let player, bots = [], projectiles = [], items = [], obstacles = [], particles = [], safeBox = null;
+        let gameActive = false;
+        let objectiveScore = 0;
+        let superCharge = 0;
+
+        const keys = { w: false, a: false, s: false, d: false };
+        let mouse = new THREE.Vector2();
+        let raycaster = new THREE.Raycaster();
+        let planeGround;
+
+        let joystickActive = false, joystickData = { x: 0, y: 0 };
+        let joystickCenter = { x: 0, y: 0 };
+
+        function initLobby() {
+            const grid = document.getElementById('char-grid');
+            grid.innerHTML = '';
+            characters.forEach((char, idx) => {
+                const card = document.createElement('div');
+                card.className = `char-card ${idx === 0 ? 'selected' : ''}`;
+                card.innerHTML = `<div class="char-icon">${char.icon}</div><div class="char-name">${char.name}</div>`;
+                card.onclick = () => selectCharacter(char, card);
+                grid.appendChild(card);
+            });
+        }
+
+        function selectCharacter(char, el) {
+            selectedChar = char;
+            document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
+            el.classList.add('selected');
+            document.getElementById('selected-char-title').innerText = char.name;
+            document.getElementById('selected-char-desc').innerText = char.desc;
+            document.getElementById('lobby-avatar-preview').innerText = char.icon;
+        }
+
+        function selectMode(mode) {
+            currentGameMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+            document.getElementById(`mode-${mode}`).classList.add('selected');
+        }
+
+        function initEngine() {
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a);
+            scene.fog = new THREE.FogExp2(0x0f172a, 0.01);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 19, 15);
+            camera.lookAt(0, 0, 2);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            clock = new THREE.Clock();
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xfffaed, 1.4);
+            dirLight.position.set(20, 30, 15);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            setupEvents();
+            initLobby();
+            animate();
+        }
+
+        // =====================================================================
+        // 4. CONSTRUCCIÓN DE ARENAS Y MAPAS
+        // =====================================================================
+        function buildArena() {
+            obstacles.forEach(o => scene.remove(o.mesh));
+            obstacles = [];
+            if (safeBox) { scene.remove(safeBox.mesh); safeBox = null; }
+
+            const floorGeo = new THREE.PlaneGeometry(38, 28);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.85 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+            planeGround = floor;
+
+            const grid = new THREE.GridHelper(38, 19, 0xf1c40f, 0x334155);
+            grid.position.y = 0.01;
+            scene.add(grid);
+
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.4 });
+            const wallConfigs = [
+                { x: -8, z: -5, w: 3.5, h: 2.2, d: 3.5 },
+                { x: 8, z: -5, w: 3.5, h: 2.2, d: 3.5 },
+                { x: -8, z: 5, w: 3.5, h: 2.2, d: 3.5 },
+                { x: 8, z: 5, w: 3.5, h: 2.2, d: 3.5 },
+                { x: 0, z: -7, w: 5, h: 1.8, d: 1.8 },
+                { x: 0, z: 7, w: 5, h: 1.8, d: 1.8 }
+            ];
+
+            wallConfigs.forEach(cfg => {
+                const geo = new THREE.BoxGeometry(cfg.w, cfg.h, cfg.d);
+                const mesh = new THREE.Mesh(geo, wallMat);
+                mesh.position.set(cfg.x, cfg.h / 2, cfg.z);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                scene.add(mesh);
+                obstacles.push({ mesh, bounds: new THREE.Box3().setFromObject(mesh) });
+            });
+
+            if (currentGameMode === 'heist') {
+                const boxGeo = new THREE.BoxGeometry(3.5, 3.5, 3.5);
+                const boxMat = new THREE.MeshStandardMaterial({ color: 0xd35400, metalness: 0.6, roughness: 0.3 });
+                const mesh = new THREE.Mesh(boxGeo, boxMat);
+                mesh.position.set(0, 1.75, -10);
+                mesh.castShadow = true;
+                scene.add(mesh);
+                safeBox = { mesh, hp: 9000, maxHp: 9000, bounds: new THREE.Box3().setFromObject(mesh) };
+            }
+        }
+
+        // =====================================================================
+        // 5. ENTIDADES: JUGADOR Y BOTS
+        // =====================================================================
+        function createPlayer() {
+            const group = new THREE.Group();
+
+            const bodyGeo = new THREE.CylinderGeometry(0.5, 0.4, 1.3, 10);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: selectedChar.color, roughness: 0.3 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.65;
+            body.castShadow = true;
+            group.add(body);
+
+            const headGeo = new THREE.SphereGeometry(0.48, 16, 16);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.5 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 1.45;
+            head.castShadow = true;
+            group.add(head);
+
+            group.position.set(0, 0, 9);
+            scene.add(group);
+
+            player = {
+                mesh: group,
+                hp: selectedChar.hp,
+                maxHp: selectedChar.hp,
+                speed: selectedChar.speed,
+                radius: 0.65,
+                isPlayer: true
+            };
+            updatePlayerHUD();
+        }
+
+        function spawnBot() {
+            const group = new THREE.Group();
+
+            const bodyGeo = new THREE.CylinderGeometry(0.5, 0.4, 1.3, 10);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.4 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.65;
+            body.castShadow = true;
+            group.add(body);
+
+            const headGeo = new THREE.BoxGeometry(0.75, 0.55, 0.65);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.7 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 1.4;
+            head.castShadow = true;
+            group.add(head);
+
+            const x = (Math.random() - 0.5) * 28;
+            const z = -9 - Math.random() * 4;
+            group.position.set(x, 0, z);
+            scene.add(group);
+
+            bots.push({
+                mesh: group,
+                hp: 3500,
+                maxHp: 3500,
+                speed: 0.055,
+                radius: 0.65,
+                shootTimer: 0,
+                isPlayer: false
+            });
+        }
+
+        // =====================================================================
+        // 6. EVENTOS Y CONTROLES HÍBRIDOS (PC & TÁCTIL)
+        // =====================================================================
+        function setupEvents() {
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            window.addEventListener('keydown', e => {
+                if (['w', 'W', 'ArrowUp'].includes(e.key)) keys.w = true;
+                if (['s', 'S', 'ArrowDown'].includes(e.key)) keys.s = true;
+                if (['a', 'A', 'ArrowLeft'].includes(e.key)) keys.a = true;
+                if (['d', 'D', 'ArrowRight'].includes(e.key)) keys.d = true;
+                if (e.key === ' ') triggerSuper();
+            });
+
+            window.addEventListener('keyup', e => {
+                if (['w', 'W', 'ArrowUp'].includes(e.key)) keys.w = false;
+                if (['s', 'S', 'ArrowDown'].includes(e.key)) keys.s = false;
+                if (['a', 'A', 'ArrowLeft'].includes(e.key)) keys.a = false;
+                if (['d', 'D', 'ArrowRight'].includes(e.key)) keys.d = false;
+            });
+
+            window.addEventListener('mousemove', e => {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            });
+
+            window.addEventListener('mousedown', e => {
+                if (!gameActive) return;
+                if (e.clientY < window.innerHeight - 160 || window.innerWidth > 768) {
+                    triggerAttack();
+                }
+            });
+
+            const zone = document.getElementById('joystick-zone');
+            const knob = document.getElementById('joystick-knob');
+
+            zone.addEventListener('touchstart', e => {
+                joystickActive = true;
+                const rect = zone.getBoundingClientRect();
+                joystickCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+            });
+
+            window.addEventListener('touchmove', e => {
+                if (!joystickActive) return;
+                const touch = e.touches[0];
+                const dx = touch.clientX - joystickCenter.x;
+                const dy = touch.clientY - joystickCenter.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const maxDist = 45;
+                const angle = Math.atan2(dy, dx);
+                const clampedDist = Math.min(dist, maxDist);
+
+                knob.style.transform = `translate(${Math.cos(angle) * clampedDist}px, ${Math.sin(angle) * clampedDist}px)`;
+                joystickData.x = (Math.cos(angle) * clampedDist) / maxDist;
+                joystickData.y = (Math.sin(angle) * clampedDist) / maxDist;
+            });
+
+            window.addEventListener('touchend', () => {
+                joystickActive = false;
+                joystickData.x = 0;
+                joystickData.y = 0;
+                knob.style.transform = `translate(0px, 0px)`;
+            });
+        }
+
+        // =====================================================================
+        // 7. SISTEMA DE COMBATE Y PROYECTILES
+        // =====================================================================
+        function triggerAttack() {
+            if (!gameActive) return;
+            initAudio();
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(planeGround);
+            let targetDir = new THREE.Vector3(0, 0, -1);
+            if (intersects.length > 0) {
+                targetDir.subVectors(intersects[0].point, player.mesh.position).normalize();
+                targetDir.y = 0;
+            } else {
+                targetDir = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0,1,0), player.mesh.rotation.y);
+            }
+
+            const wType = selectedChar.weapon;
+            if (wType === 'shotgun') {
+                for (let a = -0.35; a <= 0.35; a += 0.17) {
+                    const dir = targetDir.clone().applyAxisAngle(new THREE.Vector3(0,1,0), a);
+                    createProjectile(player.mesh.position.clone().add(new THREE.Vector3(0,1,0)), dir, selectedChar.color, 450, false, true);
+                }
+            } else if (wType === 'spike') {
+                for (let a = -0.5; a <= 0.5; a += 0.25) {
+                    const dir = targetDir.clone().applyAxisAngle(new THREE.Vector3(0,1,0), a);
+                    createProjectile(player.mesh.position.clone().add(new THREE.Vector3(0,1,0)), dir, selectedChar.color, 400, false, true);
+                }
+            } else {
+                createProjectile(player.mesh.position.clone().add(new THREE.Vector3(0,1,0)), targetDir, selectedChar.color, 550, false, true);
+            }
+            playSound('shoot');
+        }
+
+        function triggerSuper() {
+            if (superCharge < 100 || !gameActive) return;
+            superCharge = 0;
+            updateSuperButton();
+            initAudio();
+
+            for (let a = -0.6; a <= 0.6; a += 0.2) {
+                const dir = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.mesh.rotation.y + a);
+                createProjectile(player.mesh.position.clone().add(new THREE.Vector3(0,1,0)), dir, 0xf1c40f, 1100, true, true);
+            }
+            playSound('super');
+        }
+
+        function createProjectile(pos, dir, color, damage, isSuper, isFromPlayer) {
+            const geo = new THREE.SphereGeometry(isSuper ? 0.4 : 0.22, 8, 8);
+            const mat = new THREE.MeshBasicMaterial({ color: color });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(pos);
+            scene.add(mesh);
+
+            projectiles.push({ mesh, dir, speed: 0.6, damage, isSuper, isFromPlayer, life: 70 });
+        }
+
+        function dropItem(pos, type) {
+            const geo = new THREE.OctahedronGeometry(0.4);
+            const color = 0xe056fd;
+            const mat = new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 1.0 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(pos);
+            mesh.position.y = 0.45;
+            scene.add(mesh);
+            items.push({ mesh, type });
+        }
+
+        function showFloatText(text, pos, color = '#fff') {
+            const div = document.createElement('div');
+            div.className = 'float-text';
+            div.style.color = color;
+            div.innerText = text;
+
+            // Proyectar posición 3D a coordenadas 2D de pantalla
+            const vector = pos.clone();
+            vector.project(camera);
+            const x = (vector.x *  .5 + .5) * window.innerWidth;
+            const y = (vector.y * -.5 + .5) * window.innerHeight;
+
+            div.style.left = `${x}px`;
+            div.style.top = `${y}px`;
+            document.body.appendChild(div);
+
+            setTimeout(() => div.remove(), 800);
+        }
+
+        // =====================================================================
+        // 8. BUCLE PRINCIPAL DE JUEGO (ANIMACIÓN Y FÍSICAS)
+        // =====================================================================
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            if (gameActive) {
+                let moveX = 0, moveZ = 0;
+                if (keys.w) moveZ -= 1;
+                if (keys.s) moveZ += 1;
+                if (keys.a) moveX -= 1;
+                if (keys.d) moveX += 1;
+
+                if (joystickActive) {
+                    moveX = joystickData.x;
+                    moveZ = joystickData.y;
+                }
+
+                if (moveX !== 0 || moveZ !== 0) {
+                    const moveDir = new THREE.Vector3(moveX, 0, moveZ).normalize();
+                    const nextPos = player.mesh.position.clone().addScaledVector(moveDir, player.speed);
+
+                    let canMove = true;
+                    obstacles.forEach(obs => {
+                        const box = obs.bounds;
+                        if (nextPos.x > box.min.x - player.radius && nextPos.x < box.max.x + player.radius &&
+                            nextPos.z > box.min.z - player.radius && nextPos.z < box.max.z + player.radius) {
+                            canMove = false;
+                        }
+                    });
+
+                    if (nextPos.x < -18 || nextPos.x > 18 || nextPos.z < -13 || nextPos.z > 13) canMove = false;
+
+                    if (canMove) player.mesh.position.copy(nextPos);
+                    player.mesh.rotation.y = Math.atan2(moveDir.x, moveDir.z);
+                }
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObject(planeGround);
+                if (intersects.length > 0 && window.innerWidth > 768) {
+                    const p = intersects[0].point;
+                    player.mesh.rotation.y = Math.atan2(p.x - player.mesh.position.x, p.z - player.mesh.position.z);
+                }
+
+                // Cámara fluida siguiendo al jugador
+                camera.position.x += (player.mesh.position.x - camera.position.x) * 0.1;
+                camera.position.z += (player.mesh.position.z + 6.5 - camera.position.z) * 0.1;
+                camera.lookAt(player.mesh.position.x, 0, player.mesh.position.z - 2);
+
+                // Spawning automático de bots
+                if (Math.random() < 0.022 && bots.length < 5) spawnBot();
+
+                // IA de los Bots
+                for (let i = bots.length - 1; i >= 0; i--) {
+                    const bot = bots[i];
+                    const dir = new THREE.Vector3().subVectors(player.mesh.position, bot.mesh.position);
+                    const dist = dir.length();
+                    dir.normalize();
+
+                    if (dist > 3.2) {
+                        bot.mesh.position.addScaledVector(dir, bot.speed);
+                    }
+                    bot.mesh.rotation.y = Math.atan2(dir.x, dir.z);
+
+                    bot.shootTimer += delta;
+                    if (bot.shootTimer > 1.8 && dist < 15) {
+                        createProjectile(bot.mesh.position.clone().add(new THREE.Vector3(0,1,0)), dir, 0xe74c3c, 350, false, false);
+                        bot.shootTimer = 0;
+                    }
+                }
+
+                // Gestión y colisiones de Proyectiles
+                for (let i = projectiles.length - 1; i >= 0; i--) {
+                    const p = projectiles[i];
+                    p.mesh.position.addScaledVector(p.dir, p.speed);
+                    p.life--;
+
+                    let hit = false;
+                    obstacles.forEach(obs => {
+                        if (obs.bounds.containsPoint(p.mesh.position)) hit = true;
+                    });
+
+                    if (safeBox && safeBox.bounds.containsPoint(p.mesh.position) && p.isFromPlayer) {
+                        safeBox.hp -= p.damage;
+                        showFloatText(`-${p.damage}`, safeBox.mesh.position, '#e74c3c');
+                        hit = true;
+                        if (safeBox.hp <= 0) endGame(true);
+                    }
+
+                    if (hit || p.life <= 0) {
+                        scene.remove(p.mesh);
+                        projectiles.splice(i, 1);
+                        continue;
+                    }
+
+                    // Impacto en el Jugador
+                    if (!p.isFromPlayer && p.mesh.position.distanceTo(player.mesh.position) < 1.3) {
+                        player.hp -= p.damage;
+                        showFloatText(`-${p.damage}`, player.mesh.position, '#e74c3c');
+                        updatePlayerHUD();
+                        scene.remove(p.mesh);
+                        projectiles.splice(i, 1);
+                        playSound('hit');
+                        if (player.hp <= 0) endGame(false);
+                        continue;
+                    }
+
+                    // Impacto en Bots
+                    if (p.isFromPlayer) {
+                        let botHit = false;
+                        for (let j = bots.length - 1; j >= 0; j--) {
+                            const bot = bots[j];
+                            if (p.mesh.position.distanceTo(bot.mesh.position) < 1.4) {
+                                bot.hp -= p.damage;
+                                showFloatText(`-${p.damage}`, bot.mesh.position, '#f1c40f');
+                                superCharge = Math.min(100, superCharge + 30);
+                                updateSuperButton();
+                                botHit = true;
+                                playSound('hit');
+
+                                if (bot.hp <= 0) {
+                                    if (currentGameMode === 'gem') dropItem(bot.mesh.position, 'gem');
+                                    if (currentGameMode === 'bounty') {
+                                        objectiveScore++;
+                                        updateObjectiveHUD();
+                                        if (objectiveScore >= 10) endGame(true);
+                                    }
+                                    scene.remove(bot.mesh);
+                                    bots.splice(j, 1);
+                                }
+                                break;
+                            }
+                        }
+                        if (botHit) {
+                            scene.remove(p.mesh);
+                            projectiles.splice(i, 1);
+                        }
+                    }
+                }
+
+                // Recolección de Gemas / Ítems
+                for (let i = items.length - 1; i >= 0; i--) {
+                    const item = items[i];
+                    if (item.mesh.position.distanceTo(player.mesh.position) < 1.6) {
+                        if (item.type === 'gem') {
+                            objectiveScore++;
+                            showFloatText('+1 GEMA', player.mesh.position, '#e056fd');
+                            updateObjectiveHUD();
+                            playSound('gem');
+                            if (objectiveScore >= 10) endGame(true);
+                        }
+                        scene.remove(item.mesh);
+                        items.splice(i, 1);
+                    }
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // =====================================================================
+        // 9. ACTUALIZACIÓN DE HUD Y ESTADOS DE PARTIDA
+        // =====================================================================
+        function updatePlayerHUD() {
+            const currentHp = Math.max(0, player.hp);
+            document.getElementById('player-hp-text').innerText = `${currentHp} / ${player.maxHp}`;
+            const pct = (currentHp / player.maxHp) * 100;
+            document.getElementById('hp-bar-fill').style.width = `${pct}%`;
+        }
+
+        function updateObjectiveHUD() {
+            const target = currentGameMode === 'heist' ? '9k' : '10';
+            document.getElementById('objective-val').innerText = `${objectiveScore} / ${target}`;
+        }
+
+        function updateSuperButton() {
+            const btn = document.getElementById('super-btn');
+            if (superCharge >= 100) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+
+        function startBattle() {
+            initAudio();
+            document.getElementById('lobby-screen').classList.add('hidden');
+            document.getElementById('hud-layer').style.display = 'flex';
+            document.getElementById('controls-layer').style.display = 'flex';
+
+            document.getElementById('hud-avatar-icon').innerText = selectedChar.icon;
+            document.getElementById('hud-char-name').innerText = selectedChar.name;
+
+            const titleMap = { 'gem': 'Gemas Recolectadas', 'bounty': 'Estrellas Conseguidas', 'heist': 'Salud de Caja Fuerte' };
+            document.getElementById('objective-title').innerText = titleMap[currentGameMode];
+
+            objectiveScore = 0;
+            superCharge = 0;
+            updateObjectiveHUD();
+
+            buildArena();
+            createPlayer();
+
+            bots.forEach(b => scene.remove(b.mesh));
+            bots = [];
+            projectiles.forEach(p => scene.remove(p.mesh));
+            projectiles = [];
+            items.forEach(i => scene.remove(i.mesh));
+            items = [];
+
+            gameActive = true;
+        }
+
+        function endGame(victory) {
+            gameActive = false;
+            document.getElementById('hud-layer').style.display = 'none';
+            document.getElementById('controls-layer').style.display = 'none';
+
+            const screen = document.getElementById('gameover-screen');
+            const title = document.getElementById('gameover-title');
+            const desc = document.getElementById('gameover-desc');
+
+            if (victory) {
+                title.innerText = '¡VICTORIA!';
+                title.style.color = '#2ecc71';
+                desc.innerText = '¡Has cumplido con éxito la misión del modo de juego!';
+            } else {
+                title.innerText = '¡DERROTA!';
+                title.style.color = '#e74c3c';
+                desc.innerText = 'Tu brawler ha caído abatido en la arena.';
+            }
+
+            screen.classList.remove('hidden');
+        }
+
+        function returnToLobby() {
+            document.getElementById('gameover-screen').classList.add('hidden');
+            document.getElementById('lobby-screen').classList.remove('hidden');
+        }
+
+        window.onload = initEngine;
+    </script>
+</body>
+</html>

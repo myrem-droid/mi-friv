@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Cyber Runner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        body {
+            background-color: #0b0b16;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            padding: 10px;
+        }
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.3);
+            border: 2px solid #00f3ff;
+            border-radius: 8px;
+            overflow: hidden;
+            max-width: 100%;
+        }
+        canvas {
+            display: block;
+            background: linear-gradient(to bottom, #050510, #120c24);
+            width: 100%;
+            height: auto;
+            max-height: 55vh;
+        }
+        #ui {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            font-size: clamp(14px, 4vw, 20px);
+            font-weight: bold;
+            text-shadow: 0 0 8px #00f3ff;
+            pointer-events: none;
+        }
+        #instructions {
+            margin-top: 10px;
+            text-align: center;
+            color: #a0a0c0;
+            font-size: clamp(11px, 3vw, 14px);
+            max-width: 800px;
+            padding: 0 10px;
+        }
+        .key {
+            display: inline-block;
+            padding: 2px 6px;
+            border: 1px solid #00f3ff;
+            border-radius: 4px;
+            color: #00f3ff;
+            margin: 0 2px;
+        }
+
+        /* Controles Táctiles para Celular */
+        #mobile-controls {
+            display: none;
+            width: 100%;
+            max-width: 800px;
+            margin-top: 15px;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+        }
+        .control-group {
+            display: flex;
+            gap: 12px;
+        }
+        .ctrl-btn {
+            background: rgba(0, 243, 255, 0.15);
+            border: 2px solid #00f3ff;
+            color: #00f3ff;
+            font-size: 24px;
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+            outline: none;
+            transition: background 0.1s, transform 0.1s;
+        }
+        .ctrl-btn:active {
+            background: rgba(0, 243, 255, 0.4);
+            transform: scale(0.92);
+        }
+        #btn-shoot {
+            background: rgba(255, 0, 85, 0.15);
+            border-color: #ff0055;
+            color: #ff0055;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(255, 0, 85, 0.3);
+        }
+        #btn-shoot:active {
+            background: rgba(255, 0, 85, 0.4);
+        }
+
+        /* Mostrar controles táctiles solo en pantallas táctiles o móviles */
+        @media (hover: none) and (pointer: coarse), (max-width: 900px) {
+            #mobile-controls {
+                display: flex;
+            }
+            #instructions {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="450"></canvas>
+        <div id="ui">
+            <span id="scoreDisplay">PUNTOS: 0</span>
+            <span id="livesDisplay">VIDAS: ❤️❤️❤️</span>
+        </div>
+    </div>
+
+    <div id="instructions">
+        Usa <span class="key">W</span> / <span class="key">S</span> o <span class="key">Flechas Arriba/Abajo</span> para moverte | <span class="key">Espacio</span> para Disparar | Evita o destruye los drones enemigos.
+    </div>
+
+    <!-- Panel de Botones Táctiles para Celular -->
+    <div id="mobile-controls">
+        <div class="control-group">
+            <button class="ctrl-btn" id="btn-up">⬆️</button>
+            <button class="ctrl-btn" id="btn-down">⬇️</button>
+        </div>
+        <div class="control-group">
+            <button class="ctrl-btn" id="btn-shoot">DISPARAR</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Estado del Juego
+        let score = 0;
+        let lives = 3;
+        let gameRunning = true;
+        let frameCount = 0;
+
+        // Controles de Teclado
+        const keys = {};
+        window.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if (e.code === 'Space' && gameRunning) {
+                shootLaser();
+                e.preventDefault();
+            }
+            if (!gameRunning && e.code === 'KeyR') {
+                resetGame();
+            }
+        });
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        // Controles Táctiles (Celular)
+        const setupTouchBtn = (id, keyCode) => {
+            const btn = document.getElementById(id);
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                keys[keyCode] = true;
+            });
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                keys[keyCode] = false;
+            });
+            // Soporte para mouse por si se prueba en PC
+            btn.addEventListener('mousedown', () => keys[keyCode] = true);
+            btn.addEventListener('mouseup', () => keys[keyCode] = false);
+        };
+
+        setupTouchBtn('btn-up', 'ArrowUp');
+        setupTouchBtn('btn-down', 'ArrowDown');
+
+        document.getElementById('btn-shoot').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameRunning) shootLaser();
+            else resetGame();
+        });
+        document.getElementById('btn-shoot').addEventListener('mousedown', () => {
+            if (gameRunning) shootLaser();
+            else resetGame();
+        });
+
+        // Jugador
+        const player = {
+            x: 50,
+            y: canvas.height / 2 - 20,
+            width: 40,
+            height: 25,
+            speed: 5,
+            color: '#00f3ff'
+        };
+
+        let lasers = [];
+        let enemies = [];
+        let particles = [];
+        let stars = [];
+
+        // Generar fondo estrellado con efecto paralaje
+        for (let i = 0; i < 100; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2,
+                speed: Math.random() * 2 + 0.5
+            });
+        }
+
+        function shootLaser() {
+            lasers.push({
+                x: player.x + player.width,
+                y: player.y + player.height / 2 - 3,
+                width: 15,
+                height: 6,
+                speed: 10,
+                color: '#0ff'
+            });
+        }
+
+        function spawnEnemy() {
+            if (Math.random() < 0.03) {
+                enemies.push({
+                    x: canvas.width,
+                    y: Math.random() * (canvas.height - 40),
+                    width: 30,
+                    height: 30,
+                    speed: Math.random() * 2 + 2,
+                    color: '#ff0055'
+                });
+            }
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 20; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    radius: Math.random() * 3 + 1,
+                    color: color,
+                    life: 30
+                });
+            }
+        }
+
+        function update() {
+            if (!gameRunning) return;
+
+            frameCount++;
+
+            // Movimiento del Jugador
+            if ((keys['ArrowUp'] || keys['KeyW']) && player.y > 0) player.y -= player.speed;
+            if ((keys['ArrowDown'] || keys['KeyS']) && player.y + player.height < canvas.height) player.y += player.speed;
+
+            // Actualizar Estrellas
+            stars.forEach(star => {
+                star.x -= star.speed;
+                if (star.x < 0) star.x = canvas.width;
+            });
+
+            // Actualizar Láseres
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                lasers[i].x += lasers[i].speed;
+                if (lasers[i].x > canvas.width) {
+                    lasers.splice(i, 1);
+                }
+            }
+
+            // Generar y Actualizar Enemigos
+            spawnEnemy();
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                enemies[i].x -= enemies[i].speed;
+
+                // Colisión Jugador - Enemigo
+                if (
+                    player.x < enemies[i].x + enemies[i].width &&
+                    player.x + player.width > enemies[i].x &&
+                    player.y < enemies[i].y + enemies[i].height &&
+                    player.y + player.height > enemies[i].y
+                ) {
+                    createExplosion(player.x, player.y, '#00f3ff');
+                    lives--;
+                    enemies.splice(i, 1);
+                    if (lives <= 0) {
+                        gameRunning = false;
+                    }
+                    continue;
+                }
+
+                // Colisión Láser - Enemigo
+                for (let j = lasers.length - 1; j >= 0; j--) {
+                    if (
+                        lasers[j].x < enemies[i].x + enemies[i].width &&
+                        lasers[j].x + lasers[j].width > enemies[i].x &&
+                        lasers[j].y < enemies[i].y + enemies[i].height &&
+                        lasers[j].y + lasers[j].height > enemies[i].y
+                    ) {
+                        createExplosion(enemies[i].x, enemies[i].y, '#ff0055');
+                        score += 100;
+                        enemies.splice(i, 1);
+                        lasers.splice(j, 1);
+                        break;
+                    }
+                }
+
+                // Eliminar enemigos fuera de pantalla
+                if (enemies[i] && enemies[i].x + enemies[i].width < 0) {
+                    enemies.splice(i, 1);
+                }
+            }
+
+            // Actualizar Partículas
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].x += particles[i].vx;
+                particles[i].y += particles[i].vy;
+                particles[i].life--;
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Actualizar UI HTML
+            document.getElementById('scoreDisplay').innerText = `PUNTOS: ${score}`;
+            document.getElementById('livesDisplay').innerText = `VIDAS: ${'❤️'.repeat(lives)}`;
+        }
+
+        function draw() {
+            ctx.fillStyle = '#050510';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar Estrellas
+            ctx.fillStyle = '#ffffff';
+            stars.forEach(star => {
+                ctx.globalAlpha = Math.random() * 0.5 + 0.5;
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+            });
+            ctx.globalAlpha = 1.0;
+
+            // Dibujar Jugador
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = player.color;
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.moveTo(player.x + player.width, player.y + player.height / 2);
+            ctx.lineTo(player.x, player.y);
+            ctx.lineTo(player.x + 10, player.y + player.height / 2);
+            ctx.lineTo(player.x, player.y + player.height);
+            ctx.closePath();
+            ctx.fill();
+
+            // Dibujar Láseres
+            ctx.shadowColor = '#0ff';
+            ctx.fillStyle = '#0ff';
+            lasers.forEach(laser => {
+                ctx.fillRect(laser.x, laser.y, laser.width, laser.height);
+            });
+
+            // Dibujar Enemigos
+            ctx.shadowColor = '#ff0055';
+            ctx.fillStyle = '#ff0055';
+            enemies.forEach(enemy => {
+                ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(enemy.x + 5, enemy.y + 10, 6, 6);
+                ctx.fillStyle = '#ff0055';
+            });
+
+            // Dibujar Partículas
+            particles.forEach(p => {
+                ctx.shadowColor = p.color;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            ctx.shadowBlur = 0;
+
+            // Pantalla de Game Over
+            if (!gameRunning) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#ff0055';
+                ctx.font = 'bold 28px "Courier New"';
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#ff0055';
+                ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 25);
+
+                ctx.fillStyle = '#00f3ff';
+                ctx.font = '16px "Courier New"';
+                ctx.shadowColor = '#00f3ff';
+                ctx.fillText('Presiona [ R ] o toca DISPARAR', canvas.width / 2, canvas.height / 2 + 20);
+                ctx.textAlign = 'left';
+            }
+        }
+
+        function resetGame() {
+            score = 0;
+            lives = 3;
+            lasers = [];
+            enemies = [];
+            particles = [];
+            player.y = canvas.height / 2 - 20;
+            gameRunning = true;
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
